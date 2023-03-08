@@ -1,8 +1,8 @@
-#include <map>
-#include <set>
+
 #include <vector>
 #include <algorithm>
 #include <iostream>
+
 using namespace std;
 
 #ifndef LOB
@@ -10,7 +10,7 @@ using namespace std;
 
 class Lob
 {
-    int _side; // 0 for buy , 1 for sell
+    int _side; // For simplicityV :  0 for buy , 1 for sell
     double _price;
     int _volume;
 
@@ -36,11 +36,11 @@ class Order
     void handleSellOrder(Lob sellOrder);
     void handleBuyOrder(Lob order);
 
-
 public:
     void AddOrder(Lob order);
     void DisplaySellOrders();
     void DisplayBuyOrders();
+    void DisplayLob();
 
     // For testing purposes
 

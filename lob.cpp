@@ -49,7 +49,7 @@ void Order::DisplaySellOrders()
     cout << "####### Sell #######" << endl;
     for (auto &element : _sellOrders)
     {
-        cout << element.getSide() << "  " << element.getVolume() << "  " << element.getPrice() << "  ";
+        cout << element.getSide() << "  " << element.getVolume() << "  " << element.getPrice() << "  "<<endl;
     }
     cout << "##########################" << endl;
 }
@@ -59,9 +59,15 @@ void Order::DisplayBuyOrders()
     cout << "####### Buy Orders #######" << endl;
     for (auto &element : _buyOrders)
     {
-        cout << element.getSide() << "  " << element.getVolume() << "  " << element.getPrice() << "  ";
+        cout << element.getSide() << "  " << element.getVolume() << "  " << element.getPrice() << "  " <<endl;
     }
     cout << "##########################" << endl;
+}
+
+void Order::DisplayLob()
+{
+    DisplayBuyOrders();
+    DisplaySellOrders();
 }
 
 vector<Lob> Order::getBuyOrders()
@@ -122,7 +128,7 @@ void Order::handleBuyOrder(Lob buyOrder)
                 int buyVolume = 0;
                 if (buyOrder.getVolume() > _sellOrders[i].getVolume())
                 {
-                    buyVolume = buyOrder.getVolume() - _sellOrders[i].getVolume();
+                    buyVolume = _sellOrders[i].getVolume();
                     printTade(buyVolume, _sellOrders[i].getPrice());
                 }
                 else
@@ -175,7 +181,7 @@ void Order::handleSellOrder(Lob sellOrder)
                 }
                 else
                 {
-                    sellVolume = sellOrder.getVolume() - _buyOrders[i].getVolume();
+                    sellVolume = _buyOrders[i].getVolume();
                     printTade(sellVolume, _buyOrders[i].getPrice());
                 }
 
@@ -201,20 +207,4 @@ void Order::AddOrder(Lob order)
         handleBuyOrder(order);
     else if (order.getSide() == 1)
         handleSellOrder(order);
-}
-
-int main()
-{
-    Order orderbook;
-
-    Lob buy1(0, 10.3, 15);
-    Lob buy2(0, 10.2, 10);
-    Lob sell1(1, 10, 40);
-    Lob buy3(0, 10.5, 50);
-    Lob sell4(1, 11, 30);
-
-    orderbook.AddOrder(buy1);
-    orderbook.AddOrder(buy2);
-    orderbook.AddOrder(sell1);
-    return 0;
 }
