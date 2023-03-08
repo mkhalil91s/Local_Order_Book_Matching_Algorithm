@@ -133,7 +133,7 @@ void Order::handleBuyOrder(Lob buyOrder)
                 }
                 else
                 {
-                    buyVolume = _sellOrders[i].getVolume() - buyOrder.getVolume();
+                    buyVolume = buyOrder.getVolume();
                     printTade(buyVolume, _sellOrders[i].getPrice());
                 }
                 _sellOrders[i].decreaseVolumeBy(buyVolume);
@@ -176,7 +176,7 @@ void Order::handleSellOrder(Lob sellOrder)
                 int sellVolume = 0;
                 if (sellOrder.getVolume() <= _buyOrders[i].getVolume())
                 {
-                    sellVolume = _buyOrders[i].getVolume() - sellOrder.getVolume();
+                    sellVolume = sellOrder.getVolume();
                     printTade(sellVolume, _buyOrders[i].getPrice());
                 }
                 else
