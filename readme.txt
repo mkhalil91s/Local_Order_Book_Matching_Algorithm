@@ -1,5 +1,13 @@
+For building :
+
+mkdir build
+cd build
+cmake ..
+make
+
+
 // /* 
-// All Options C++ test
+
 
 // A limit order is an order to buy or sell a financial instrument for a specified price (or better). It contains these key parameters:
 // * Side (Do you want to buy or sell this instrument?)
