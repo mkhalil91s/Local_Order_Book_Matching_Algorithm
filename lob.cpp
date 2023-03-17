@@ -541,10 +541,6 @@ vector<string> Lob::GetBidValues()
 
             ++buyit2;
         }
-        else
-        {
-            cout << ",,";
-        }
 
         if (sellit2 != bidOrdersSell.end())
         {
@@ -558,15 +554,10 @@ vector<string> Lob::GetBidValues()
             d += (ss.str());
             ++sellit2;
         }
-        else
-        {
-            cout << ",,";
-        }
 
         bid = a + "," + b + "," + c + "," + d;
         output.push_back(bid);
 
-        cout << endl;
     }
     return output;
 }
@@ -606,7 +597,7 @@ vector<string> Lob::GetBidValues()
         for (string input : inputs)
         {
             auto command = parseString(input);
-            cout << "Order : " << input << endl;
+            //cout << "-Order : " << input << endl;
 
             if (command[0] == "INSERT")
             {
