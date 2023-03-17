@@ -18,10 +18,9 @@ class Order
     string _side;
     string _price;
     int _volume;
-    /**
-     * seqNo specifies the sequential order of LobOrder object being added into LOB
-     */
-    int _seqNo{0};
+
+    int _seqNo;
+    long _createdTsMsec;
 
 public:
     Order(int orderid, string symbole, string side, string price, int volume);
@@ -33,6 +32,10 @@ public:
     const int getVolume() const;
     const int getSequenceNumber() const;
     void incrementSequenceNumber();
+    long getCreatedTsMsec() const;
+    void setCreatedTsMsec();
+
+    long current_time_msec();
 
     void setVolume(int volume);
     void setPrice(string price);
@@ -45,15 +48,15 @@ public:
 class Lob
 {
 
-    void handleSellOrder(std::shared_ptr<Order> sellOrder);
-    void handleBuyOrder(std::shared_ptr<Order> buyOrder);
+    vector<string> handleSellOrder(std::shared_ptr<Order> sellOrder);
+    vector<string> handleBuyOrder(std::shared_ptr<Order> buyOrder);
     void DisplaySellOrders();
     void DisplayBuyOrders();
     bool DoesOrderExist(int orderid, string side);
     string DoesOrderExist(int orderid);
     void handleDeleteOrder(int orderid, string side);
-    void handleAmendOrderBuy(int orderid, string price, int volume);
-    void handleAmendOrderSell(int orderid, string price, int volume);
+    vector<string> handleAmendOrderBuy(int orderid, string price, int volume);
+    vector<string> handleAmendOrderSell(int orderid, string price, int volume);
 
     struct SellComparator
     {
@@ -73,16 +76,16 @@ class Lob
     static vector<string> trades;
 
 public:
-    void AddOrder(int orderid, string symbole, string side, string price, int volume);
+    vector<string> AddOrder(int orderid, string symbole, string side, string price, int volume);
     void DeleteOrder(int orderid);
-    void AmendOrder(int orderid, string price, int volume);
+    vector<string> AmendOrder(int orderid, string price, int volume);
     void DisplayLob();
     void DeleteEmptyOrderIds();
-    void DisplayBidValues();
 
+    string printTade(string symbole, string price, int volume, int aggressiveOrder, int PassiveOrder);
+    static vector<string> getTrades();
 
-    static void printTade(string symbole, string price, int volume, int aggressiveOrder, int PassiveOrder);
-    static void printTrades();
+    vector<string> GetBidValues();
 
     const set<std::shared_ptr<Order>, BuyComparator> &getBuyOrders() const;
     const set<std::shared_ptr<Order>, SellComparator> &getSellOrders() const;
@@ -95,10 +98,17 @@ class MatchingEngine
 {
     map<string, unique_ptr<Lob>> _matchingEngineLob;
     map<int, string> _orderToSymbolMapHistory;
+    vector<string> _trades;
+    vector<string> _bids;
+
+    vector<string> parseString(string input);
 
 public:
-
     void run(vector<string> inputs);
-    vector<string> parseString(string input);
+    void calculateBids();
+    vector<string> getTrades();
+
+    vector<string> getResults();
 };
+
 #endif // LOB

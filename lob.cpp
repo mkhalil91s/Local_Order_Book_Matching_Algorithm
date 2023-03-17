@@ -1,7 +1,15 @@
-#include "lob.h"
+#include <algorithm>
+#include <iostream>
+#include <string>
+#include <map>
+#include <set>
+#include <unordered_map>
+#include <vector>
+#include <chrono>
 #include <sstream>
-
-vector<string> Lob::trades;
+#include <memory>
+#include "lob.h"
+using namespace std;
 
 Order::Order(int orderid, string symbole, string side, string price, int volume)
 {
@@ -28,8 +36,25 @@ Order::Order(int orderid, string symbole, string side, string price, int volume)
     _side = side;
     _price = price;
     _volume = volume;
+    _seqNo = 1;
+    _createdTsMsec = current_time_msec();
 }
 
+long Order::current_time_msec()
+{
+    using namespace std::chrono;
+    return duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+}
+
+long Order::getCreatedTsMsec() const
+{
+    return _createdTsMsec;
+}
+
+void Order::setCreatedTsMsec()
+{
+    _createdTsMsec = current_time_msec();
+}
 bool Order::operator==(const Order &c)
 {
     if (_orderId == c.getOrderId())
@@ -89,18 +114,113 @@ void Order::decreaseVolumeBy(int size)
 
 void Order::increaseVolumeBy(int size)
 {
-
     _volume = _volume + size;
+}
+
+bool Lob::BuyComparator::operator()(const std::shared_ptr<Order> o1,
+                                    const std::shared_ptr<Order> o2) const
+{
+
+    if (stof(o1->getPrice()) > stof(o2->getPrice()))
+    {
+        return true;
+    }
+    else if (stof(o1->getPrice()) == stof(o2->getPrice()))
+    {
+        if ((o1->getSequenceNumber() < o2->getSequenceNumber()))
+        {
+            return true;
+        }
+        else if ((o1->getSequenceNumber() == o2->getSequenceNumber()))
+        {
+
+            if (o1->getCreatedTsMsec() < o2->getCreatedTsMsec())
+            {
+                return true;
+            }
+            else if (o1->getCreatedTsMsec() == o2->getCreatedTsMsec())
+            {
+                if (o1->getOrderId() < o2->getOrderId())
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                return false;
+            }
+        }
+        else
+        {
+            return false;
+        }
+    }
+    else
+    {
+        return false;
+    }
+}
+
+bool Lob::SellComparator::operator()(const std::shared_ptr<Order> o1,
+                                     const std::shared_ptr<Order> o2) const
+{
+
+    if (stof(o1->getPrice()) < stof(o2->getPrice()))
+    {
+        return true;
+    }
+    else if (stof(o1->getPrice()) == stof(o2->getPrice()))
+    {
+        if ((o1->getSequenceNumber() < o2->getSequenceNumber()))
+        {
+            return true;
+        }
+        else if ((o1->getSequenceNumber() == o2->getSequenceNumber()))
+        {
+
+            if (o1->getCreatedTsMsec() < o2->getCreatedTsMsec())
+            {
+                return true;
+            }
+            else if (o1->getCreatedTsMsec() == o2->getCreatedTsMsec())
+            {
+                if (o1->getOrderId() < o2->getOrderId())
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                return false;
+            }
+        }
+        else
+        {
+            return false;
+        }
+    }
+    else
+    {
+        return false;
+    }
 }
 
 void Lob::DisplaySellOrders()
 {
 
-    // Order::Order(int orderid, string symbole, string side, string price, int volume)
     cout << "####### Sell #######" << endl;
     for (auto element : _sellOrders)
     {
-        cout << element->getOrderId() << "  " << element->getSymbole() << "  " << element->getSide() << "  " << element->getPrice() << "  " << element->getVolume() << endl;
+        cout << element->getOrderId() << "  " << element->getSymbole() << "  " << element->getSide() << "  " << element->getPrice() << "  " << element->getVolume()
+             << "  " << element->getCreatedTsMsec() << "  " << element->getSequenceNumber() << endl;
     }
     cout << "##########################" << endl;
 }
@@ -110,7 +230,8 @@ void Lob::DisplayBuyOrders()
     cout << "####### Buy Orders #######" << endl;
     for (auto element : _buyOrders)
     {
-        cout << element->getOrderId() << "  " << element->getSymbole() << "  " << element->getSide() << "  " << element->getPrice() << "  " << element->getVolume() << endl;
+        cout << element->getOrderId() << "  " << element->getSymbole() << "  " << element->getSide() << "  " << element->getPrice() << "  " << element->getVolume()
+             << "  " << element->getCreatedTsMsec() << "  " << element->getSequenceNumber() << endl;
     }
     cout << "##########################" << endl;
 }
@@ -166,34 +287,16 @@ const map<int, std::shared_ptr<Order>> &Lob::getSellOrdersMap() const
     return _sellOrdersMap;
 }
 
-bool Lob::BuyComparator::operator()(const std::shared_ptr<Order> o1,
-                                    const std::shared_ptr<Order> o2) const
+string Lob::printTade(string symbole, string price, int volume, int aggressiveOrder, int PassiveOrder)
 {
-    return (stof(o1->getPrice()) > stof(o2->getPrice())) // higher buy price wins
-           || (stof(o1->getPrice()) == stof(o2->getPrice()) && o1->getOrderId() < o2->getOrderId());
+    string trade = symbole + "," + price + "," + to_string(volume) + "," + to_string(aggressiveOrder) + "," + to_string(PassiveOrder);
+    cout << "Trade : " << trade << endl;
+    return trade;
 }
 
-bool Lob::SellComparator::operator()(const std::shared_ptr<Order> o1,
-                                     const std::shared_ptr<Order> o2) const
+vector<string> Lob::handleBuyOrder(std::shared_ptr<Order> buyOrder)
 {
-    return (stof(o1->getPrice()) < stof(o2->getPrice())) // lower sale price wins
-           || (stof(o1->getPrice()) == stof(o2->getPrice()) && o1->getOrderId() < o2->getOrderId());
-}
-
-void Lob::printTade(string symbole, string price, int volume, int aggressiveOrder, int PassiveOrder)
-{
-    string trade = symbole + "," + price + "," + to_string(volume) + "," + to_string(aggressiveOrder) + "," + to_string(PassiveOrder) + "\n";
-    // cout << trade;
-    Lob::trades.push_back(trade);
-}
-
-void Lob::printTrades()
-{
-    for (string trade : trades)
-        cout << trade;
-}
-void Lob::handleBuyOrder(std::shared_ptr<Order> buyOrder)
-{
+    vector<string> tradesWithIn;
 
     if (_sellOrders.size() == 0)
     {
@@ -219,7 +322,7 @@ void Lob::handleBuyOrder(std::shared_ptr<Order> buyOrder)
             else
                 buyVolume = buyOrder->getVolume();
 
-            printTade(currentSellOrder->getSymbole(), currentSellOrder->getPrice(), buyVolume, buyOrder->getOrderId(), currentSellOrder->getOrderId());
+            tradesWithIn.push_back(printTade(currentSellOrder->getSymbole(), currentSellOrder->getPrice(), buyVolume, buyOrder->getOrderId(), currentSellOrder->getOrderId()));
 
             currentSellOrder->decreaseVolumeBy(buyVolume);
             buyOrder->decreaseVolumeBy(buyVolume);
@@ -229,10 +332,12 @@ void Lob::handleBuyOrder(std::shared_ptr<Order> buyOrder)
             _buyOrdersMap[buyOrder->getOrderId()] = buyOrder;
         _buyOrders.insert(buyOrder);
     }
+    return tradesWithIn;
 }
 
-void Lob::handleSellOrder(std::shared_ptr<Order> sellOrder)
+vector<string> Lob::handleSellOrder(std::shared_ptr<Order> sellOrder)
 {
+    vector<string> tradesWithIn;
 
     if (_buyOrders.size() == 0)
     {
@@ -259,7 +364,7 @@ void Lob::handleSellOrder(std::shared_ptr<Order> sellOrder)
             else
                 sellVolume = currentBuyOrder->getVolume();
 
-            printTade(currentBuyOrder->getSymbole(), currentBuyOrder->getPrice(), sellVolume, sellOrder->getOrderId(), currentBuyOrder->getOrderId());
+            tradesWithIn.push_back(printTade(currentBuyOrder->getSymbole(), currentBuyOrder->getPrice(), sellVolume, sellOrder->getOrderId(), currentBuyOrder->getOrderId()));
 
             sellOrder->decreaseVolumeBy(sellVolume);
             currentBuyOrder->decreaseVolumeBy(sellVolume);
@@ -268,6 +373,8 @@ void Lob::handleSellOrder(std::shared_ptr<Order> sellOrder)
         _sellOrdersMap[sellOrder->getOrderId()] = sellOrder;
         _sellOrders.insert(sellOrder);
     }
+
+    return tradesWithIn;
 }
 
 void Lob::handleDeleteOrder(int orderid, string side)
@@ -284,55 +391,62 @@ void Lob::handleDeleteOrder(int orderid, string side)
     }
 }
 
-void Lob::AddOrder(int orderid, string symbole, string side, string price, int volume)
+vector<string> Lob::AddOrder(int orderid, string symbole, string side, string price, int volume)
 {
     if (side == "BUY")
     {
         if (DoesOrderExist(orderid, side))
             throw("Order Already Exists");
         auto buyOrder = std::make_shared<Order>(Order{orderid, symbole, side, price, volume});
-        handleBuyOrder(buyOrder);
+        return handleBuyOrder(buyOrder);
     }
     else if (side == "SELL")
     {
         if (DoesOrderExist(orderid, side))
             throw("Order Already Exists");
         auto sellOrder = std::make_shared<Order>(Order{orderid, symbole, side, price, volume});
-        handleSellOrder(sellOrder);
+        return handleSellOrder(sellOrder);
     }
     else
         throw("Unknown order type");
 }
 
-void Lob::handleAmendOrderBuy(int orderid, string price, int volume)
+vector<string> Lob::handleAmendOrderBuy(int orderid, string price, int volume)
 {
     if (stof(_buyOrdersMap[orderid]->getPrice()) == stof(price))
     {
         _buyOrdersMap[orderid]->setVolume(volume);
+        return vector<string>();
     }
     else
     {
         _buyOrders.erase(_buyOrdersMap[orderid]);
         _buyOrdersMap[orderid]->setVolume(volume);
         _buyOrdersMap[orderid]->setPrice(price);
+        _buyOrdersMap[orderid]->incrementSequenceNumber();
+        _buyOrdersMap[orderid]->setCreatedTsMsec();
 
-        handleBuyOrder(_buyOrdersMap[orderid]);
+        return handleBuyOrder(_buyOrdersMap[orderid]);
     }
 }
 
-void Lob::handleAmendOrderSell(int orderid, string price, int volume)
+vector<string> Lob::handleAmendOrderSell(int orderid, string price, int volume)
 {
     if (stof(_sellOrdersMap[orderid]->getPrice()) == stof(price))
     {
         _sellOrdersMap[orderid]->setVolume(volume);
+
+        return vector<string>();
     }
     else
     {
         _sellOrders.erase(_sellOrdersMap[orderid]);
         _sellOrdersMap[orderid]->setVolume(volume);
         _sellOrdersMap[orderid]->setPrice(price);
+        _sellOrdersMap[orderid]->incrementSequenceNumber();
+        _sellOrdersMap[orderid]->setCreatedTsMsec();
 
-        handleSellOrder(_sellOrdersMap[orderid]);
+        return handleSellOrder(_sellOrdersMap[orderid]);
     }
 }
 void Lob::DeleteOrder(int orderid)
@@ -344,21 +458,23 @@ void Lob::DeleteOrder(int orderid)
     handleDeleteOrder(orderid, orderSide);
 }
 
-void Lob::AmendOrder(int orderid, string price, int volume)
+vector<string> Lob::AmendOrder(int orderid, string price, int volume)
 {
     auto orderSide = DoesOrderExist(orderid);
     if (orderSide == "")
         throw("Error , order doesn't exist");
 
     if (orderSide == "BUY")
-        handleAmendOrderBuy(orderid, price, volume);
+        return handleAmendOrderBuy(orderid, price, volume);
     else if (orderSide == "SELL")
-        handleAmendOrderSell(orderid, price, volume);
+        return handleAmendOrderSell(orderid, price, volume);
+    else
+        return vector<string>();
 }
 
 void Lob::DeleteEmptyOrderIds()
 {
-    for (auto it = _buyOrdersMap.cbegin(); it != _buyOrdersMap.cend() /* not hoisted */; /* no increment */)
+    for (auto it = _buyOrdersMap.cbegin(); it != _buyOrdersMap.cend();)
     {
         if (it->second->getVolume() == 0)
         {
@@ -371,7 +487,7 @@ void Lob::DeleteEmptyOrderIds()
         }
     }
 
-    for (auto it = _sellOrdersMap.cbegin(); it != _sellOrdersMap.cend() /* not hoisted */; /* no increment */)
+    for (auto it = _sellOrdersMap.cbegin(); it != _sellOrdersMap.cend();)
     {
         if (it->second->getVolume() == 0)
         {
@@ -385,117 +501,200 @@ void Lob::DeleteEmptyOrderIds()
     }
 }
 
-void Lob::DisplayBidValues()
+vector<string> Lob::GetBidValues()
 {
+    std::map<float, int, std::greater<float>> bidOrdersBuy;
+    std::map<float, int> bidOrdersSell;
+    vector<string> output;
     DeleteEmptyOrderIds();
+
     auto buyit = _buyOrders.begin();
-    auto sellit = _sellOrders.begin();
-
-    while (buyit != _buyOrders.end() || sellit != _sellOrders.end())
+    while (buyit != _buyOrders.end())
     {
-        if (buyit != _buyOrders.end())
+        bidOrdersBuy[stof((*buyit)->getPrice())] += (*buyit)->getVolume();
+        ++buyit;
+    }
+
+    auto sellit = _sellOrders.begin();
+    while (sellit != _sellOrders.end())
+    {
+        bidOrdersSell[stof((*sellit)->getPrice())] += (*sellit)->getVolume();
+        ++sellit;
+    }
+
+    auto buyit2 = bidOrdersBuy.begin();
+    auto sellit2 = bidOrdersSell.begin();
+
+    while (buyit2 != bidOrdersBuy.end() || sellit2 != bidOrdersSell.end())
+    {
+        string bid = "", a = "", b = "", c = "", d = "";
+        if (buyit2 != bidOrdersBuy.end())
         {
-            cout << (*buyit)->getPrice() << "," << (*buyit)->getVolume();
-            ++buyit;
+            stringstream s;
+            s << buyit2->first;
+
+            a += (s.str());
+
+            stringstream ss;
+            ss << buyit2->second;
+            b += (ss.str());
+
+            ++buyit2;
         }
         else
         {
             cout << ",,";
         }
 
-        if (sellit != _sellOrders.end())
+        if (sellit2 != bidOrdersSell.end())
         {
-            cout << "," << (*sellit)->getPrice() << "," << (*sellit)->getVolume();
-            ++sellit;
+
+            stringstream s;
+            s << sellit2->first;
+            c += (s.str());
+
+            stringstream ss;
+            ss << sellit2->second;
+            d += (ss.str());
+            ++sellit2;
         }
         else
         {
             cout << ",,";
         }
+
+        bid = a + "," + b + "," + c + "," + d;
+        output.push_back(bid);
 
         cout << endl;
-    }
-}
-
-vector<string> MatchingEngine::parseString(string input)
-{
-    vector<string> output;
-    string T;
-
-    stringstream X(input);
-
-    while (getline(X, T, ','))
-    {
-        output.push_back(T);
     }
     return output;
 }
 
-void MatchingEngine::run(vector<string> inputs)
-{
 
-    for (string input : inputs)
+
+    vector<string> MatchingEngine::parseString(string input)
     {
-        auto command = parseString(input);
-        cout<<input<<endl;
+        vector<string> output;
+        string T;
 
-        if (command[0] == "INSERT")
+        stringstream X(input);
+
+        while (getline(X, T, ','))
         {
-            auto orderId = stoi(command[1]);
-            auto symbole = command[2];
-            auto side = command[3];
-            auto price = command[4];
-            auto volume = stoi(command[5]);
-
-            if (_matchingEngineLob.find(symbole) != _matchingEngineLob.end())
-            {
-                _matchingEngineLob[symbole]->AddOrder(orderId, symbole, side, price, volume);
-            }
-            else
-            {
-                _matchingEngineLob[symbole] = make_unique<Lob>();
-                _matchingEngineLob[symbole]->AddOrder(orderId, symbole, side, price, volume);
-            }
-            _orderToSymbolMapHistory[orderId] = symbole;
+            output.push_back(T);
         }
-        else if (command[0] == "AMEND")
-        {
-
-            auto orderId = stoi(command[1]);
-            auto price = command[2];
-            auto volume = stoi(command[3]);
-
-            auto orderSymboleIt = _orderToSymbolMapHistory.find(orderId);
-
-            if (orderSymboleIt != _orderToSymbolMapHistory.end())
-            {
-                _matchingEngineLob[orderSymboleIt->second]->AmendOrder(orderId, price, volume);
-            }
-            else
-            {
-                throw("Order not found");
-            }
-        }
-        else if (command[0] == "PULL")
-        {
-            auto orderId = stoi(command[1]);
-
-            auto orderSymboleIt = _orderToSymbolMapHistory.find(orderId);
-
-            if (orderSymboleIt != _orderToSymbolMapHistory.end())
-            {
-                _matchingEngineLob[orderSymboleIt->second]->DeleteOrder(orderId);
-            }
-            else
-            {
-                throw("Order not found");
-            }
-        }
-
-        _matchingEngineLob["WEBB"]->DisplayLob();
-
-        cout<<"-----------------------------------"<<endl;
+        return output;
+    }
+    vector<string> MatchingEngine::getTrades()
+    {
+        return _trades;
     }
 
-    Lob::printTrades();
-}
+    vector<string> MatchingEngine::getResults()
+    {
+        vector<string> results;
+
+        results.insert(results.end(), _trades.begin(), _trades.end());
+        results.insert(results.end(), _bids.begin(), _bids.end());
+        return results;
+    }
+
+    void MatchingEngine::run(vector<string> inputs)
+    {
+
+        for (string input : inputs)
+        {
+            auto command = parseString(input);
+            cout << "Order : " << input << endl;
+
+            if (command[0] == "INSERT")
+            {
+                auto orderId = stoi(command[1]);
+                auto symbole = command[2];
+                auto side = command[3];
+                auto price = command[4];
+                auto volume = stoi(command[5]);
+
+                if (_matchingEngineLob.find(symbole) != _matchingEngineLob.end())
+                {
+                    vector<string> tradesOccured = _matchingEngineLob[symbole]->AddOrder(orderId, symbole, side, price, volume);
+
+                    if (tradesOccured.size() != 0)
+                        _trades.insert(_trades.end(), tradesOccured.begin(), tradesOccured.end());
+                }
+                else
+                {
+                    _matchingEngineLob[symbole] = make_unique<Lob>();
+                    vector<string> tradesOccured = _matchingEngineLob[symbole]->AddOrder(orderId, symbole, side, price, volume);
+
+                    if (tradesOccured.size() != 0)
+                        _trades.insert(_trades.end(), tradesOccured.begin(), tradesOccured.end());
+                }
+                _orderToSymbolMapHistory[orderId] = symbole;
+            }
+            else if (command[0] == "AMEND")
+            {
+
+                auto orderId = stoi(command[1]);
+                auto price = command[2];
+                auto volume = stoi(command[3]);
+
+                auto orderSymboleIt = _orderToSymbolMapHistory.find(orderId);
+
+                if (orderSymboleIt != _orderToSymbolMapHistory.end())
+                {
+                    vector<string> tradesOccured = _matchingEngineLob[orderSymboleIt->second]->AmendOrder(orderId, price, volume);
+
+                    if (tradesOccured.size() != 0)
+                        _trades.insert(_trades.end(), tradesOccured.begin(), tradesOccured.end());
+                }
+                else
+                {
+                    throw("Order not found");
+                }
+            }
+            else if (command[0] == "PULL")
+            {
+                auto orderId = stoi(command[1]);
+
+                auto orderSymboleIt = _orderToSymbolMapHistory.find(orderId);
+
+                if (orderSymboleIt != _orderToSymbolMapHistory.end())
+                {
+                    _matchingEngineLob[orderSymboleIt->second]->DeleteOrder(orderId);
+                }
+                else
+                {
+                    throw("Order not found");
+                }
+            }
+        }
+
+        calculateBids();
+    }
+
+    void MatchingEngine::calculateBids()
+    {
+        for (auto it = _matchingEngineLob.begin(); it != _matchingEngineLob.end(); ++it)
+        {
+            vector<string> bids = it->second->GetBidValues();
+
+            if (bids.size() > 0)
+            {
+                string temp = "===" + it->first + "===";
+                _bids.push_back(temp);
+                _bids.insert(_bids.end(), bids.begin(), bids.end());
+            }
+        }
+    }
+
+
+// std::vector<std::string> run(std::vector<std::string> const& input) {
+
+//     MatchingEngine m;
+//     m.run(input);
+
+//     auto result = m.getResults();
+//     return result;
+// }
