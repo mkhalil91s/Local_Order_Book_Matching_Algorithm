@@ -13,3 +13,6 @@ add_executable(lobTest
                 test.cpp) # add this executable
 
 target_link_libraries(lobTest PRIVATE gtest gtest_main) # link google test to this executable
+
+# add_executable(lob 
+#                 lob.cpp) # add this executable
